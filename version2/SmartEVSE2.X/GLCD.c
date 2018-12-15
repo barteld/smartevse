@@ -297,6 +297,7 @@ const far char StrMin[] = 		"MIN";
 const far char StrLock[] = 		"LOCK";
 const far char StrSolenoid[] =	"Solenoid";
 const far char StrMotor[] =		"Motor";
+const far char StrPhSwitch[] =	"Phase Switch";
 const far char StrDisable[] =	"Disabled";
 const far char StrCable[] = 	"CABLE";
 const far char StrCal[] =	 	"CAL";
@@ -305,6 +306,7 @@ const far char StrMaster[] =	"Master";
 const far char StrSlave1[] =	"Slave 1";
 const far char StrSlave2[] =	"Slave 2";
 const far char StrSlave3[] =	"Slave 3";
+const far char StrSlaveSw[] =	"Slave Switch";
 const far char StrExit[] =	 	"EXIT";
 const far char StrExitMenu[] =	"MENU";
 
@@ -855,7 +857,8 @@ void GLCDMenu(unsigned char Buttons)
             else if (LoadBl==1) GLCD_print_menu(StrMaster,4);
             else if (LoadBl==2) GLCD_print_menu(StrSlave1,4);
             else if (LoadBl==3) GLCD_print_menu(StrSlave2,4);
-            else GLCD_print_menu(StrSlave3,4);
+            else if (LoadBl==4) GLCD_print_menu(StrSlave3,4);
+            else GLCD_print_menu(StrSlaveSw,5);
         }
 		else if (LCDNav==MENU_MAINS)
 		{ 
@@ -877,6 +880,7 @@ void GLCDMenu(unsigned char Buttons)
 			GLCD_print_menu(StrLock,2);
 			if (Lock==1) GLCD_print_menu(StrSolenoid,4);
             else if (Lock==2) GLCD_print_menu(StrMotor,4);
+            else if (Lock==3) GLCD_print_menu(StrPhSwitch,4);
 			else GLCD_print_menu(StrDisable,4);
 		}
 		else if (LCDNav==MENU_CABLE)

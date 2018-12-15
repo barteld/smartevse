@@ -80,6 +80,9 @@
 #define CONTACTOR_OFF PORTBbits.RB4 = 0;				// Contactor OFF
 #define CONTACTOR_ON  PORTBbits.RB4 = 1;				// Contactor ON
 
+#define CONTACTOR2_OFF PORTAbits.RA4 = 1;               // switch contactor for killing phases on or of
+#define CONTACTOR2_ON  PORTAbits.RA4 = 0;
+
 #define BACKLIGHT_OFF PORTAbits.RA3 = 0;				// LCD Backlight OFF
 #define BACKLIGHT_ON  PORTAbits.RA3 = 1;				// LCD Backlight ON
 

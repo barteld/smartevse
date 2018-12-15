@@ -493,6 +493,14 @@ void Temp(void)								// Measure Temperature EVSE (0-125 C)
 
 void SetCurrent(unsigned int current)		// current in Amps (16= 16A)
 {
+    // this is a bit of an ugly hack. Should be done more elegantly somewhere 
+    // else
+    // If we are a switching slave, always set the current to max as 
+    // the loadbalancing bit is done by removing phases
+    if (LoadBl==5)
+    {
+        current=MaxCurrent;
+    }
 	unsigned int DutyCycle;
 
 	current=current*10;						// multiply by 10 (current in Amps x10	(160= 16A) )
@@ -506,9 +514,13 @@ void SetCurrent(unsigned int current)		// current in Amps (16= 16A)
 											// PWM Pilot signal enabled
 }
 
-// Is there atleast 6A(configurable MinCurrent) available for a EVSE?
+// Is there at least 6A (configurable MinCurrent) available for a EVSE?
 char IsCurrentAvailable(void)
 {
+    if (LoadBl==5)                                      // if we are just a switching slave always return true
+    {                                                   // as we can assume that we have a phase at our disposal
+        return 1;
+    }                                                    
 	unsigned char n,ActiveEVSE=0;
 	int Baseload,TotalCurrent=0;
 
@@ -537,6 +549,18 @@ char IsCurrentAvailable(void)
 		}
 	}
 	return 0;
+}
+
+// is there any other evse active at the moment?
+char IsOtherEvseActive(void)
+{
+    unsigned char n;
+    for (n=1;n<4;n++) if (BalancedState[n]==2)          //check all other evse's skipping ourselves
+    {
+        return 1;
+    }
+    return 0;
+
 }
 
 
@@ -787,6 +811,11 @@ void RS232cli(void)
 				Lock = 2;
 				write_settings();				// Write to eeprom
 			}
+			else if (strcmp(U2buffer,(const far char *)"PHSWITCH") == 0) // we abuse the lock for switching the second contactor
+			{
+				Lock = 3;
+				write_settings();				// Write to eeprom
+			}
             else if (strcmp(U2buffer,(const far char *)"DISABLE") == 0)
 			{
 				Lock = 0;
@@ -833,6 +862,11 @@ void RS232cli(void)
 				LoadBl = 4;
 				write_settings();				// Write to eeprom
 			}
+			else if (strcmp(U2buffer,(const far char *)"SLAVESW") == 0)
+			{
+				LoadBl = 5;
+				write_settings();				// Write to eeprom
+			}
 
 		}
 
@@ -861,7 +895,8 @@ void RS232cli(void)
 		else if (LoadBl==1) printf("Master\r\n");
 		else if (LoadBl==2) printf("Slave1\r\n");
 		else if (LoadBl==3) printf("Slave2\r\n");
-		else printf("Slave3\r\n");
+        else if (LoadBl==4) printf("Slave3\r\n");
+		else printf("SlaveSw\r\n");
 
 		if (Mode || LoadBl==1) 
 		{
@@ -919,11 +954,12 @@ void RS232cli(void)
 	}
 	else if (menu==6)
 	{
-        printf("Cable lock set to : ");
+        printf("Cable lock/phase switch set to : ");
 		if (Lock==2) printf("Motor\r\n");
 		else if (Lock==1) printf("Solenoid\r\n");
+        else if (Lock==3) printf("Phase Switch\r\n");
 		else printf("Disable\r\n");
-		printf("Enter new Cable lock mode (DISABLE/SOLENOID/MOTOR): ");
+		printf("Enter new Cable lock mode (DISABLE/SOLENOID/PHSWICTH): ");
 	}
 	else if (menu==7)
 	{
@@ -944,7 +980,7 @@ void RS232cli(void)
 		if (LoadBl==0) printf("Disabled\r\n");
 		else if (LoadBl==1) printf("Master\r\n");
 		else printf("Slave%u\r\n",LoadBl-1);
-		printf("Enter Load Balancing mode (DISABLE/MASTER/SLAVE1/SLAVE2/SLAVE3): ");
+		printf("Enter Load Balancing mode (DISABLE/MASTER/SLAVE1-3/SLAVESW): ");
 	}
 
 	ISR2FLAG=0;				// clear flag
@@ -1164,6 +1200,7 @@ void main(void)
 		{
 			CCP1CON = 0;					// PWM off
 			PORTCbits.RC2 = 1;				// Control pilot static +12V
+            CONTACTOR2_OFF;
 			CONTACTOR_OFF;					// Contactor OFF
 			BalancedState[0]=0;				// Mark as inactive
 
@@ -1265,8 +1302,11 @@ void main(void)
 									{
 										BalancedState[0]=2;										// Mark as Charging
 										Balanced[0]=0;											// For correct baseload calculation set current to zero
- 										CalcBalancedCurrent(1);									// Calculate charge current for all connected EVSE's
-
+ 										CalcBalancedCurrent(1);	 								// Calculate charge current for all connected EVSE's
+                                        if (LoadBl==5 && IsOtherEvseActive()==1)                // if any of the other evse's are charging we need to
+                                        {                                                       // set the second solenoid so we kill some phases 
+                                            CONTACTOR2_ON;
+                                        }
 										CONTACTOR_ON;											// Contactor ON
 										DiodeCheck=0;
 										State = STATE_C;										// switch to STATE_C
@@ -1354,8 +1394,9 @@ void main(void)
 					{
 						if (count++ > 5) 									// repeat 5 times
 						{
-
+                            CONTACTOR2_OFF;
 							CONTACTOR_OFF;									// Contactor OFF
+                            
 							DiodeCheck=0;
 							State = STATE_B;								// switch back to STATE_B
 							if (LoadBl>1)									// Load Balancing : Slave 
@@ -1610,6 +1651,11 @@ void main(void)
 						else
 						{
 							SetCurrent(ChargeCurrent);
+                            if (LoadBl==5 && IsOtherEvseActive()==1)                // if any of the other evse's are charging we need to
+                            {                                                       // set the second solenoid so we kill some phases 
+                                 CONTACTOR2_ON;
+                            }
+
 							CONTACTOR_ON;								// Contactor ON
 							DiodeCheck=0;
 							State=STATE_C;								// switch to STATE_C
