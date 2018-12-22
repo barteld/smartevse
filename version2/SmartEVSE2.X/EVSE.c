@@ -493,11 +493,10 @@ void Temp(void)								// Measure Temperature EVSE (0-125 C)
 
 void SetCurrent(unsigned int current)		// current in Amps (16= 16A)
 {
-    // this is a bit of an ugly hack. Should be done more elegantly somewhere 
-    // else
     // If we are a switching slave, always set the current to max as 
+    // we can assume that we have a dedicated phase assigned to us
     // the loadbalancing bit is done by removing phases
-    if (LoadBl==5)
+    if (LoadBl==5 && !current==0)
     {
         current=MaxCurrent;
     }
